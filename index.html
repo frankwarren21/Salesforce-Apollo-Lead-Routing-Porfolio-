@@ -166,15 +166,7 @@
     margin-bottom: 18px;
   }
 
-  .portrait:before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background:
-      linear-gradient(115deg, transparent 0 42%, rgba(0,0,0,.36) 42% 100%),
-      radial-gradient(circle at 48% 54%, rgba(0,0,0,.75), transparent 31%);
-  }
-
+ 
   .monogram {
     position: relative;
     z-index: 1;
@@ -696,14 +688,29 @@
   border-radius: 9px;
   overflow: hidden;
   margin-bottom: 18px;
-  background: #ddd;
+  background: #f7f4ef;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Removes the dark graphic overlay */
+.portrait:before {
+  content: none !important;
+  display: none !important;
+}
+
+/* Removes any extra image effect */
+.portrait:after {
+  content: none !important;
+  display: none !important;
 }
 
 .portrait img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
-  object-position: center;
+  object-fit: contain;
+  object-position: center center;
   display: block;
 }
 </style>
