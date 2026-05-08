@@ -1,0 +1,914 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Apollo → Salesforce Lead Routing Pipeline | Frank Lee Warren</title>
+<style>
+  :root {
+    --bg-orange: #ff5a05;
+    --bg-red: #dd1b06;
+    --panel: #11110f;
+    --panel-2: #171714;
+    --paper: #f6f4ef;
+    --ink: #11110f;
+    --white: #fffaf2;
+    --muted: #8f8b86;
+    --muted-2: #5f5c59;
+    --line: rgba(255,250,242,0.12);
+    --orange: #ff6a1a;
+    --orange-2: #ff8a3d;
+    --lime: #c8ff2f;
+    --lime-2: #8ddd20;
+    --gray-word: #2e2e33;
+    --radius-xl: 34px;
+    --radius-lg: 24px;
+    --radius-md: 16px;
+    --shadow: 0 35px 90px rgba(0,0,0,.34);
+  }
+
+  @page {
+    size: letter;
+    margin: 0.45in;
+  }
+
+  * { box-sizing: border-box; }
+
+  html {
+    scroll-behavior: smooth;
+    background: #ff5a05;
+  }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    color: var(--white);
+    background:
+      radial-gradient(circle at 82% 23%, rgba(255, 185, 86, .72), transparent 19%),
+      radial-gradient(circle at 5% 80%, rgba(30, 0, 0, .58), transparent 26%),
+      linear-gradient(180deg, #ff5c06 0%, #ff3c05 42%, #7e1308 100%);
+    padding: 70px 24px 90px;
+    line-height: 1.55;
+  }
+
+  .stage {
+    width: min(1030px, 100%);
+    margin: 0 auto;
+    background:
+      radial-gradient(circle at 14% 0%, rgba(255,255,255,.045), transparent 22%),
+      linear-gradient(135deg, #151513 0%, #10100f 56%, #0c0c0b 100%);
+    border: 1px solid rgba(255,255,255,.08);
+    border-radius: 46px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    position: relative;
+  }
+
+  .stage:before,
+  .stage:after {
+    content: "";
+    position: absolute;
+    pointer-events: none;
+    border-radius: 999px;
+    filter: blur(3px);
+  }
+
+  .stage:before {
+    width: 300px;
+    height: 300px;
+    right: -170px;
+    top: 220px;
+    background: radial-gradient(circle, rgba(255,106,26,.18), transparent 68%);
+  }
+
+  .stage:after {
+    width: 360px;
+    height: 360px;
+    left: -190px;
+    bottom: 260px;
+    background: radial-gradient(circle, rgba(200,255,47,.06), transparent 70%);
+  }
+
+  .topbar {
+    width: fit-content;
+    margin: 22px auto 0;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    padding: 9px 16px;
+    border-radius: 999px;
+    background: rgba(255,255,255,.075);
+    border: 1px solid rgba(255,255,255,.06);
+    color: rgba(255,250,242,.72);
+    font-size: 12px;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    font-weight: 700;
+  }
+
+  .topbar span:not(:last-child)::after {
+    content: "";
+    display: inline-block;
+    width: 4px;
+    height: 4px;
+    margin-left: 12px;
+    vertical-align: middle;
+    border-radius: 99px;
+    background: rgba(255,250,242,.32);
+  }
+
+  .hero {
+    padding: 54px 78px 58px;
+    display: grid;
+    grid-template-columns: 260px minmax(0, 1fr);
+    gap: 68px;
+    align-items: center;
+  }
+
+  .profile-card {
+    min-height: 392px;
+    border-radius: 14px;
+    background: #f7f4ef;
+    color: var(--ink);
+    padding: 20px 19px 18px;
+    position: relative;
+    box-shadow: 0 18px 40px rgba(0,0,0,.28);
+    overflow: hidden;
+  }
+
+  .profile-card:before,
+  .profile-card:after {
+    content: "";
+    position: absolute;
+    width: 160px;
+    height: 160px;
+    border: 2px dashed var(--orange);
+    border-radius: 50%;
+    opacity: .95;
+    pointer-events: none;
+  }
+
+  .profile-card:before { left: -78px; top: -82px; }
+  .profile-card:after { left: -76px; bottom: 92px; }
+
+  .portrait {
+    position: relative;
+    z-index: 1;
+    height: 170px;
+    border-radius: 9px;
+    overflow: hidden;
+    background:
+      radial-gradient(circle at 78% 24%, rgba(255,255,255,.18), transparent 22%),
+      linear-gradient(135deg, #ff6a1a 0%, #b62a09 55%, #20130d 100%);
+    display: grid;
+    place-items: center;
+    margin-bottom: 18px;
+  }
+
+  .portrait:before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+      linear-gradient(115deg, transparent 0 42%, rgba(0,0,0,.36) 42% 100%),
+      radial-gradient(circle at 48% 54%, rgba(0,0,0,.75), transparent 31%);
+  }
+
+  .monogram {
+    position: relative;
+    z-index: 1;
+    width: 92px;
+    height: 92px;
+    border: 2px solid rgba(255,250,242,.75);
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    color: #fff;
+    font-size: 29px;
+    font-weight: 950;
+    letter-spacing: -.08em;
+  }
+
+  .profile-card h2 {
+    position: relative;
+    z-index: 1;
+    margin: 0 0 7px;
+    font-size: 26px;
+    line-height: .98;
+    letter-spacing: -.07em;
+    text-transform: uppercase;
+    color: #0d0d0c;
+  }
+
+  .role-pill {
+    position: relative;
+    z-index: 1;
+    width: 28px;
+    height: 28px;
+    margin: 9px auto 32px;
+    border-radius: 50%;
+    background: var(--orange);
+    box-shadow: 0 0 0 5px rgba(255,106,26,.15);
+  }
+
+  .role-pill:before,
+  .role-pill:after {
+    content: "";
+    position: absolute;
+    background: #fff;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+  }
+
+  .role-pill:before { width: 10px; height: 2px; }
+  .role-pill:after { width: 2px; height: 10px; }
+
+  .profile-card p {
+    position: relative;
+    z-index: 1;
+    margin: 0 auto 18px;
+    width: 82%;
+    color: #58514c;
+    text-align: center;
+    font-size: 12px;
+    line-height: 1.2;
+    font-weight: 700;
+  }
+
+  .profile-meta {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    justify-content: center;
+    gap: 14px;
+    color: var(--orange);
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: .08em;
+  }
+
+  .hero-copy {
+    min-width: 0;
+  }
+
+  .eyebrow {
+    margin: 0 0 16px;
+    color: rgba(255,250,242,.68);
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    font-size: 12px;
+    font-weight: 850;
+  }
+
+  h1 {
+    margin: 0;
+    font-size: clamp(48px, 7.9vw, 78px);
+    line-height: .88;
+    letter-spacing: -.07em;
+    text-transform: uppercase;
+  }
+
+  .ghost-word {
+    display: block;
+    color: var(--gray-word);
+    text-shadow: 0 1px 0 rgba(255,255,255,.025);
+  }
+
+  .hero-copy .lead {
+    width: min(500px, 100%);
+    margin: 18px 0 34px;
+    color: rgba(255,250,242,.62);
+    font-size: 14px;
+    line-height: 1.55;
+  }
+
+  .metrics {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+    width: min(520px, 100%);
+    margin-bottom: 34px;
+  }
+
+  .metric strong {
+    display: block;
+    color: var(--white);
+    font-size: 42px;
+    line-height: .92;
+    letter-spacing: -.06em;
+  }
+
+  .metric span {
+    display: block;
+    margin-top: 8px;
+    color: rgba(255,250,242,.48);
+    font-size: 10px;
+    line-height: 1.08;
+    text-transform: uppercase;
+    font-weight: 800;
+  }
+
+  .skill-cards {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px;
+    width: min(520px, 100%);
+  }
+
+  .skill-card {
+    min-height: 126px;
+    border-radius: 7px;
+    padding: 18px;
+    position: relative;
+    overflow: hidden;
+    color: #10100e;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+
+  .skill-card.orange {
+    background:
+      radial-gradient(circle at 72% 22%, rgba(0,0,0,.12), transparent 24%),
+      linear-gradient(135deg, #ff6a1a 0%, #fb7d3f 100%);
+    color: #fffaf2;
+  }
+
+  .skill-card.lime {
+    background:
+      linear-gradient(135deg, #c8ff2f 0%, #b9fb28 100%);
+  }
+
+  .skill-card:before {
+    content: "";
+    position: absolute;
+    right: -28px;
+    top: -14px;
+    width: 165px;
+    height: 165px;
+    border: 3px solid rgba(20,20,18,.14);
+    transform: rotate(28deg);
+  }
+
+  .skill-card .label {
+    position: relative;
+    z-index: 1;
+    font-size: 21px;
+    font-weight: 900;
+    line-height: 1.02;
+    letter-spacing: -.055em;
+    text-transform: uppercase;
+  }
+
+  .skill-card .arrow {
+    position: relative;
+    z-index: 1;
+    align-self: flex-end;
+    width: 25px;
+    height: 25px;
+    border-radius: 6px;
+    border: 1px solid rgba(255,250,242,.55);
+    display: grid;
+    place-items: center;
+    font-weight: 900;
+    line-height: 1;
+  }
+
+  .skill-card.lime .arrow { border-color: rgba(17,17,15,.45); }
+
+  .content {
+    padding: 0 78px 74px;
+  }
+
+  .section-kicker {
+    color: var(--orange);
+    text-transform: uppercase;
+    letter-spacing: .16em;
+    font-size: 11px;
+    font-weight: 900;
+    margin-bottom: 10px;
+  }
+
+  .big-section-title {
+    margin: 0 0 22px;
+    font-size: clamp(42px, 7vw, 70px);
+    line-height: .88;
+    letter-spacing: -.07em;
+    text-transform: uppercase;
+  }
+
+  .big-section-title .ghost-word { color: #2f2f35; }
+
+  .intro-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+    margin: 0 0 68px;
+  }
+
+  .executive-card {
+    background: rgba(255,250,242,.055);
+    border: 1px solid rgba(255,255,255,.07);
+    border-radius: 20px;
+    padding: 22px;
+  }
+
+  .executive-card.highlight {
+    background: #f6f4ef;
+    color: var(--ink);
+  }
+
+  .executive-card h3,
+  .roadmap-card h3,
+  .timeline-item h3,
+  .proof-card h3 {
+    margin: 0 0 8px;
+    font-size: 18px;
+    line-height: 1.08;
+    letter-spacing: -.04em;
+  }
+
+  .executive-card p,
+  .timeline-item p,
+  .roadmap-card p,
+  .proof-card p {
+    margin: 0;
+    color: rgba(255,250,242,.62);
+    font-size: 13px;
+    line-height: 1.55;
+  }
+
+  .executive-card.highlight p { color: #5a5751; }
+
+  .architecture-wrap {
+    margin: 0 0 74px;
+  }
+
+  .architecture {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    padding: 18px;
+    border-radius: 26px;
+    background: rgba(255,250,242,.04);
+    border: 1px solid rgba(255,255,255,.08);
+  }
+
+  .node {
+    min-height: 105px;
+    border-radius: 18px;
+    background: #1d1d1a;
+    border: 1px solid rgba(255,255,255,.075);
+    padding: 16px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .node:nth-child(2), .node:nth-child(6) {
+    background: linear-gradient(135deg, #ff6a1a, #ff8545);
+    color: var(--white);
+  }
+
+  .node:nth-child(4), .node:nth-child(8) {
+    background: linear-gradient(135deg, #c8ff2f, #adf226);
+    color: var(--ink);
+  }
+
+  .node:after {
+    content: "→";
+    position: absolute;
+    right: 13px;
+    bottom: 10px;
+    font-size: 22px;
+    font-weight: 950;
+    opacity: .38;
+  }
+
+  .node:nth-child(4):after,
+  .node:nth-child(8):after { content: ""; }
+
+  .node .num {
+    display: block;
+    margin-bottom: 22px;
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: .12em;
+    color: rgba(255,250,242,.38);
+  }
+
+  .node:nth-child(4) .num,
+  .node:nth-child(8) .num { color: rgba(17,17,15,.46); }
+
+  .node strong {
+    display: block;
+    font-size: 16px;
+    line-height: 1.05;
+    letter-spacing: -.04em;
+    text-transform: uppercase;
+  }
+
+  .node small {
+    display: block;
+    margin-top: 7px;
+    color: rgba(255,250,242,.52);
+    line-height: 1.25;
+  }
+
+  .node:nth-child(4) small,
+  .node:nth-child(8) small { color: rgba(17,17,15,.58); }
+
+  .pullquote {
+    margin: 26px 0 0;
+    padding: 18px 22px;
+    border-left: 4px solid var(--orange);
+    background: rgba(255,106,26,.08);
+    color: rgba(255,250,242,.76);
+    font-size: 15px;
+    line-height: 1.55;
+    border-radius: 0 18px 18px 0;
+  }
+
+  .timeline {
+    display: grid;
+    gap: 18px;
+    margin: 0 0 70px;
+  }
+
+  .timeline-item {
+    display: grid;
+    grid-template-columns: 92px minmax(0, 1fr);
+    gap: 20px;
+    align-items: start;
+    padding: 24px;
+    border-radius: 22px;
+    background: rgba(255,250,242,.055);
+    border: 1px solid rgba(255,255,255,.08);
+  }
+
+  .timeline-number {
+    width: 70px;
+    height: 70px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    background: var(--orange);
+    color: var(--white);
+    font-size: 26px;
+    font-weight: 950;
+    letter-spacing: -.06em;
+    box-shadow: 0 0 0 8px rgba(255,106,26,.12);
+  }
+
+  .timeline-item:nth-child(even) .timeline-number {
+    background: var(--lime);
+    color: var(--ink);
+    box-shadow: 0 0 0 8px rgba(200,255,47,.09);
+  }
+
+  .timeline-item code {
+    color: #f5d7c7;
+    background: rgba(255,106,26,.12);
+    border: 1px solid rgba(255,106,26,.18);
+    border-radius: 6px;
+    padding: 1px 5px;
+    font-size: 12px;
+  }
+
+  .code-panel {
+    margin: 18px 0 0;
+    background: #070707;
+    border: 1px solid rgba(255,255,255,.08);
+    border-radius: 18px;
+    padding: 18px;
+    overflow: hidden;
+  }
+
+  .code-panel pre {
+    margin: 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: #eee7db;
+    font-size: 12px;
+    line-height: 1.55;
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  }
+
+  .code-comment { color: #817b75; }
+  .code-error { color: #ffc09f; }
+
+  .roadmap-grid,
+  .proof-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 18px;
+    margin: 0 0 70px;
+  }
+
+  .roadmap-card,
+  .proof-card {
+    min-height: 158px;
+    border-radius: 22px;
+    padding: 22px;
+    border: 1px solid rgba(255,255,255,.08);
+    background: rgba(255,250,242,.055);
+  }
+
+  .roadmap-card:nth-child(1),
+  .proof-card:nth-child(2) {
+    background: linear-gradient(135deg, #ff6a1a, #ff8545);
+  }
+
+  .roadmap-card:nth-child(4),
+  .proof-card:nth-child(3) {
+    background: linear-gradient(135deg, #c8ff2f, #aee928);
+    color: var(--ink);
+  }
+
+  .roadmap-card:nth-child(1) p,
+  .proof-card:nth-child(2) p { color: rgba(255,250,242,.78); }
+  .roadmap-card:nth-child(4) p,
+  .proof-card:nth-child(3) p { color: rgba(17,17,15,.64); }
+
+  .footer {
+    border-top: 1px solid rgba(255,255,255,.08);
+    padding-top: 26px;
+    display: flex;
+    justify-content: space-between;
+    gap: 20px;
+    color: rgba(255,250,242,.44);
+    font-size: 12px;
+    line-height: 1.35;
+  }
+
+  .footer strong {
+    display: block;
+    color: var(--white);
+    margin-bottom: 4px;
+  }
+
+  @media (max-width: 900px) {
+    body { padding: 24px 14px 40px; }
+    .stage { border-radius: 28px; }
+    .hero, .content { padding-left: 28px; padding-right: 28px; }
+    .hero { grid-template-columns: 1fr; gap: 32px; }
+    .profile-card { width: min(320px, 100%); margin: 0 auto; }
+    .metrics, .skill-cards, .intro-grid, .roadmap-grid, .proof-grid { grid-template-columns: 1fr; }
+    .architecture { grid-template-columns: repeat(2, 1fr); }
+    .timeline-item { grid-template-columns: 1fr; }
+  }
+
+  @media (max-width: 560px) {
+    h1 { font-size: 44px; }
+    .big-section-title { font-size: 40px; }
+    .architecture { grid-template-columns: 1fr; }
+    .topbar { display: none; }
+    .footer { display: block; }
+    .footer > div + div { margin-top: 12px; }
+  }
+
+  @media print {
+    html, body {
+      background: #fff;
+      color: #111;
+      padding: 0;
+    }
+    .stage {
+      box-shadow: none;
+      border-radius: 0;
+      border: none;
+      background: #111;
+      width: 100%;
+    }
+    .topbar { display: none; }
+    .hero { padding-top: 28px; }
+    .timeline-item,
+    .roadmap-card,
+    .proof-card,
+    .executive-card,
+    .architecture { page-break-inside: avoid; }
+  }
+  .portrait {
+  position: relative;
+  z-index: 1;
+  height: 170px;
+  border-radius: 9px;
+  overflow: hidden;
+  margin-bottom: 18px;
+  background: #ddd;
+}
+
+.portrait img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+}
+</style>
+</head>
+<body>
+  <main class="stage">
+    <div class="topbar" aria-label="Portfolio navigation">
+      <span>Case Study</span>
+      <span>Automation</span>
+      <span>Salesforce</span>
+      <span>n8n</span>
+    </div>
+
+    <section class="hero">
+      <aside class="profile-card" aria-label="Portfolio profile card">
+       <div class="portrait">
+  <img src="Head shot.jpg" alt="Frank Lee Warren headshot">
+</div>
+        <h2>Frank Lee Warren</h2>
+        <div class="role-pill" aria-hidden="true"></div>
+        <p>Salesforce Certified Administrator building cleaner systems, smarter routing, and scalable business operations.</p>
+        <div class="profile-meta">
+          <span>SFDC</span>
+          <span>API</span>
+          <span>FLOW</span>
+          <span>OPS</span>
+        </div>
+      </aside>
+
+      <div class="hero-copy">
+        <p class="eyebrow">Portfolio Case Study · 2024</p>
+        <h1>Apollo → Salesforce <span class="ghost-word">Lead Routing</span></h1>
+        <p class="lead">A multi-list lead enrichment workflow that pulls prospects from Apollo.io, normalizes them to Salesforce shape, and routes each lead to the correct Salesforce Web-to-Lead endpoint by segment.</p>
+
+        <div class="metrics" aria-label="Project metrics">
+          <div class="metric">
+            <strong>+2</strong>
+            <span>Prospect<br>segments</span>
+          </div>
+          <div class="metric">
+            <strong>0</strong>
+            <span>Manual CSV<br>handoffs</span>
+          </div>
+          <div class="metric">
+            <strong>N</strong>
+            <span>Configurable<br>Apollo lists</span>
+          </div>
+        </div>
+
+        <div class="skill-cards">
+          <div class="skill-card orange">
+            <div class="label">Lead routing, assignment logic</div>
+            <div class="arrow">→</div>
+          </div>
+          <div class="skill-card lime">
+            <div class="label">n8n, Apollo API, Salesforce</div>
+            <div class="arrow">→</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="content">
+      <div class="section-kicker">Business context</div>
+      <h2 class="big-section-title">The problem <span class="ghost-word">to solve</span></h2>
+
+      <div class="intro-grid">
+        <article class="executive-card highlight">
+          <h3>The manual process was slowing down speed-to-lead.</h3>
+          <p>The New Trade Program runs outbound prospecting into two distinct audiences: Schools, which represent educational partnership prospects, and Partnership, which represents B2B partnership prospects. Each segment has its own Apollo contact list, Salesforce assignment logic, and follow-up cadence.</p>
+        </article>
+        <article class="executive-card">
+          <h3>The risk was bad data and delayed follow-up.</h3>
+          <p>The prior workflow depended on exporting CSVs from Apollo, cleaning field names, importing with Data Loader, and manually tagging each batch. That created opportunities for mis-tagging, duplicate work, and leads sitting cold before a rep could respond.</p>
+        </article>
+      </div>
+
+      <div class="section-kicker">System design</div>
+      <h2 class="big-section-title">Workflow <span class="ghost-word">architecture</span></h2>
+
+      <div class="architecture-wrap">
+        <div class="architecture" aria-label="Apollo to Salesforce routing architecture">
+          <div class="node"><span class="num">01</span><strong>Manual trigger</strong><small>Starts the controlled sync.</small></div>
+          <div class="node"><span class="num">02</span><strong>List IDs</strong><small>Configuration array holds every Apollo segment.</small></div>
+          <div class="node"><span class="num">03</span><strong>List split</strong><small>Each list runs through the same logic.</small></div>
+          <div class="node"><span class="num">04</span><strong>Apollo fetch</strong><small>Paginated API calls retrieve contacts.</small></div>
+          <div class="node"><span class="num">05</span><strong>Split contacts</strong><small>Code node validates and unpacks records.</small></div>
+          <div class="node"><span class="num">06</span><strong>Field map</strong><small>Apollo fields normalize to Salesforce shape.</small></div>
+          <div class="node"><span class="num">07</span><strong>Switch</strong><small>Routes by source list and segment.</small></div>
+          <div class="node"><span class="num">08</span><strong>Web-to-Lead</strong><small>Posts into the correct Salesforce path.</small></div>
+        </div>
+        <div class="pullquote">The design treats list IDs as data, not code. Adding a new segment means adding one entry to the config and one branch to the Switch — not duplicating an entire workflow.</div>
+      </div>
+
+      <div class="section-kicker">Build walkthrough</div>
+      <h2 class="big-section-title">How the <span class="ghost-word">system works</span></h2>
+
+      <div class="timeline">
+        <article class="timeline-item">
+          <div class="timeline-number">01</div>
+          <div>
+            <h3>Configuration as data</h3>
+            <p>The List IDs node holds Apollo list IDs as a configurable array. The workflow splits that array and processes each list independently, which means one set of automation logic can support multiple lead segments without creating separate workflows for each audience.</p>
+          </div>
+        </article>
+
+        <article class="timeline-item">
+          <div class="timeline-number">02</div>
+          <div>
+            <h3>Pagination without recursion</h3>
+            <p>Apollo returns contacts in batches, so the workflow initializes the page counter and advances pages until Apollo returns an empty result. Because n8n does not behave like a traditional programming loop, state is carried through Set nodes in a controlled way.</p>
+          </div>
+        </article>
+
+        <article class="timeline-item">
+          <div class="timeline-number">03</div>
+          <div>
+            <h3>Defensive code node</h3>
+            <p>The Split Contacts code node validates the API response and context before trying to transform records. Descriptive errors make the workflow easier to debug when an upstream response changes.</p>
+            <div class="code-panel">
+<pre>const inputs = $input.all();
+
+<span class="code-comment">// Validate presence of both inputs</span>
+if (!Array.isArray(inputs[0]) || inputs[0].length === 0) {
+  throw new Error(<span class="code-error">'Split Contacts: no Apollo response on input 0'</span>);
+}
+if (!Array.isArray(inputs[1]) || inputs[1].length === 0) {
+  throw new Error(<span class="code-error">'Split Contacts: no Init Page context on input 1'</span>);
+}
+
+const apolloJson = inputs[0][0].json || {};
+const ctx        = inputs[1][0].json || {};</pre>
+            </div>
+          </div>
+        </article>
+
+        <article class="timeline-item">
+          <div class="timeline-number">04</div>
+          <div>
+            <h3>Field mapping from Apollo to Salesforce</h3>
+            <p>Apollo and Salesforce use different data shapes. Apollo fields such as <code>organization.name</code> and <code>present_raw_address</code> are mapped into the format Salesforce Web-to-Lead expects, including company, street, lead source, and custom field identifiers.</p>
+          </div>
+        </article>
+
+        <article class="timeline-item">
+          <div class="timeline-number">05</div>
+          <div>
+            <h3>Switch-based routing</h3>
+            <p>The Switch node looks at the original Apollo list ID and routes each lead to the correct Salesforce Web-to-Lead endpoint. By tagging upstream, the lead lands in Salesforce with the source and campaign values needed for assignment rules to do their job immediately.</p>
+          </div>
+        </article>
+      </div>
+
+      <div class="section-kicker">Roadmap</div>
+      <h2 class="big-section-title">What comes <span class="ghost-word">next</span></h2>
+
+      <div class="roadmap-grid">
+        <article class="roadmap-card">
+          <h3>Scheduled sync</h3>
+          <p>Replace the manual trigger with a daily 6 AM sync so refreshed Apollo lists are pushed into Salesforce automatically.</p>
+        </article>
+        <article class="roadmap-card">
+          <h3>Deduplication check</h3>
+          <p>Query Salesforce for an existing email match before posting, so re-running the workflow does not create duplicate leads.</p>
+        </article>
+        <article class="roadmap-card">
+          <h3>Apollo webhook trigger</h3>
+          <p>Trigger the workflow when a list changes so Salesforce receives new contacts within minutes rather than on a fixed schedule.</p>
+        </article>
+        <article class="roadmap-card">
+          <h3>Failure notifications</h3>
+          <p>Send Slack alerts with failed records attached when any lead fails to post or validate correctly.</p>
+        </article>
+      </div>
+
+      <div class="section-kicker">Portfolio value</div>
+      <h2 class="big-section-title">What this <span class="ghost-word">demonstrates</span></h2>
+
+      <div class="proof-grid">
+        <article class="proof-card">
+          <h3>Salesforce-native administration</h3>
+          <p>Web-to-Lead configuration, custom field IDs, lead source tagging, campaign tagging, assignment rule design, and the practical admin work that makes a CRM usable.</p>
+        </article>
+        <article class="proof-card">
+          <h3>Integration depth</h3>
+          <p>REST API structure, pagination, multi-list processing, field transformation, and defensive input validation beyond native Salesforce configuration.</p>
+        </article>
+        <article class="proof-card">
+          <h3>Design judgment</h3>
+          <p>Configuration-as-data, separation of concerns, upstream tagging, and choosing the simplest version that solves the actual business problem.</p>
+        </article>
+        <article class="proof-card">
+          <h3>Cross-functional thinking</h3>
+          <p>The integration design and Salesforce assignment rule design work as one system, connecting marketing operations, sales follow-up, and CRM governance.</p>
+        </article>
+      </div>
+
+      <footer class="footer">
+        <div>
+          <strong>Frank Lee Warren</strong>
+          frank.warren@gmail.com · linkedin.com/in/frank-warren
+        </div>
+        <div>Apollo → Salesforce Lead Routing Pipeline</div>
+      </footer>
+    </section>
+  </main>
+</body>
+</html>
